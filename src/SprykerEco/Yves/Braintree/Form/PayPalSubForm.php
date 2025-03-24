@@ -9,9 +9,12 @@ namespace SprykerEco\Yves\Braintree\Form;
 
 use Generated\Shared\Transfer\BraintreePaymentTransfer;
 use Spryker\Shared\Config\Config;
+use Spryker\Shared\Kernel\Locale\LocaleNotFoundException;
 use Spryker\Shared\Kernel\Store;
+use Spryker\Shared\Kernel\Transfer\Exception\NullValueException;
 use SprykerEco\Shared\Braintree\BraintreeConfig;
 use SprykerEco\Shared\Braintree\BraintreeConstants;
+use Symfony\Component\Form\Exception\RuntimeException;
 use Symfony\Component\Form\FormInterface;
 use Symfony\Component\Form\FormView;
 use Symfony\Component\OptionsResolver\OptionsResolver;
@@ -88,18 +91,21 @@ class PayPalSubForm extends AbstractSubForm
     }
 
     /**
-     * @param \Symfony\Component\Form\FormView $view The view
-     * @param \Symfony\Component\Form\FormInterface $form The form
-     * @param array $options The options
+     * @param \Symfony\Component\Form\FormView      $view    The view
+     * @param \Symfony\Component\Form\FormInterface $form    The form
+     * @param array                                 $options The options
      *
      * @return void
+     * @throws NullValueException
+     * @throws LocaleNotFoundException
+     * @throws RuntimeException
+     * @throws \Exception
      */
-    public function buildView(FormView $view, FormInterface $form, array $options)
+    public function buildView(FormView $view, FormInterface $form, array $options): void
     {
         parent::buildView($view, $form, $options);
 
         $view->vars[static::CLIENT_TOKEN] = $this->generateClientToken();
-        $view->vars[static::LOCALE] = Store::getInstance()->getCurrentLocale();
         $view->vars[static::ENV] = Config::get(BraintreeConstants::ENVIRONMENT);
 
         $parentForm = $form->getParent();
@@ -107,8 +113,9 @@ class PayPalSubForm extends AbstractSubForm
             /** @var \Generated\Shared\Transfer\QuoteTransfer $quoteTransfer */
             $quoteTransfer = $parentForm->getViewData();
 
-            $view->vars[static::AMOUNT] = $quoteTransfer->getTotalsOrFail()->getGrandTotal();
-            $view->vars[static::CURRENCY] = $quoteTransfer->getCurrencyOrFail()->getCode();
+            $view->vars[static::LOCALE] = $quoteTransfer->getStore()?->getDefaultLocaleIsoCode();
+            $view->vars[static::AMOUNT] = $quoteTransfer->getTotalsOrFail()?->getGrandTotal();
+            $view->vars[static::CURRENCY] = $quoteTransfer->getCurrencyOrFail()?->getCode();
         }
     }
 }
